@@ -19,11 +19,11 @@
 
 ---
 
-✨ Beautiful by default · ⚡ Lightning fast · 📦 Zero dependency · 🎨 Themeable
+✨ Beautiful by default · ⚡ Lightning fast · 📦 Zero runtime deps · 🎨 Themeable
 
 ## Features
 
-- 🖋 **Full GFM Markdown** — tables, footnotes, task lists, strikethrough, autolinks
+- 🖋 **GFM Markdown** — task lists, strikethrough, autolinks (tables & footnotes coming in Phase 2)
 - ➗ **Math rendering** — `$inline$` and `$$display$$` (KaTeX-compatible, parsed via comrak; full rendering coming in Phase 2)
 - ⚡ **Typst-powered** — orders of magnitude faster than LaTeX
 - 📦 **Single binary** — no Node.js, Python, or LaTeX required
@@ -70,7 +70,9 @@ cat README.md | md2paper - -o readme.pdf
 
 Use `--theme <name>` to select a built-in theme, or pass a path to a `.toml` file to use a custom theme.
 
-## CLI Reference
+## Common Options
+
+See `md2paper --help` for the full list of options.
 
 | Option | Description |
 |--------|-------------|
@@ -83,8 +85,6 @@ Use `--theme <name>` to select a built-in theme, or pass a path to a `.toml` fil
 | `--toc` | Generate table of contents |
 | `--cover` | Generate cover page from front matter |
 | `--emit-typst` | Output Typst markup instead of PDF (useful for debugging custom themes) |
-
-See `md2paper --help` for all options.
 
 ## Library API
 
