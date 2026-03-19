@@ -1,0 +1,10 @@
+[package]
+name = "md2paper-render"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+typst = { workspace = true }
+typst-pdf = { workspace = true }
+typst-assets = { workspace = true }

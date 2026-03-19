@@ -1,0 +1,51 @@
+[meta]
+name = "default"
+description = "Clean, readable default theme"
+version = "1.0.0"
+
+[page]
+paper = "a4"
+margin_top = "2.5cm"
+margin_bottom = "2.5cm"
+margin_left = "2.5cm"
+margin_right = "2.5cm"
+columns = 1
+
+[font]
+body_family = "Libertinus Serif"
+body_size = "11pt"
+body_weight = "regular"
+heading_family = "New Computer Modern"
+heading_weight = "bold"
+code_family = "DejaVu Sans Mono"
+code_size = "9pt"
+fallback = []
+
+[spacing]
+line_height = 1.6
+paragraph_spacing = "0.8em"
+letter_spacing = "0pt"
+heading_above = "1.2em"
+heading_below = "0.6em"
+
+[color]
+body_text = "#333333"
+heading = "#1a1a2e"
+link = "#2563eb"
+code_text = "#383a42"
+code_background = "#f6f8fa"
+blockquote_border = "#d1d5db"
+blockquote_text = "#6b7280"
+
+[code]
+theme = "default"
+line_numbers = false
+border_radius = "4pt"
+
+[header_footer]
+header_left = ""
+header_center = ""
+header_right = "{title}"
+footer_left = ""
+footer_center = "{page}"
+footer_right = ""

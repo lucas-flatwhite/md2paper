@@ -1,0 +1,51 @@
+[meta]
+name = "newspaper"
+description = "Two-column layout, serif headings — newsletter/article style"
+version = "1.0.0"
+
+[page]
+paper = "a4"
+margin_top = "2.0cm"
+margin_bottom = "2.0cm"
+margin_left = "1.8cm"
+margin_right = "1.8cm"
+columns = 2
+
+[font]
+body_family = "Libertinus Serif"
+body_size = "10pt"
+body_weight = "regular"
+heading_family = "Libertinus Serif"
+heading_weight = "bold"
+code_family = "DejaVu Sans Mono"
+code_size = "8pt"
+fallback = []
+
+[spacing]
+line_height = 1.45
+paragraph_spacing = "0.5em"
+letter_spacing = "0pt"
+heading_above = "0.8em"
+heading_below = "0.4em"
+
+[color]
+body_text = "#111111"
+heading = "#111111"
+link = "#0000ee"
+code_text = "#24292e"
+code_background = "#f6f8fa"
+blockquote_border = "#999999"
+blockquote_text = "#555555"
+
+[code]
+theme = "default"
+line_numbers = false
+border_radius = "2pt"
+
+[header_footer]
+header_left = "{title}"
+header_center = ""
+header_right = ""
+footer_left = ""
+footer_center = "{page}"
+footer_right = ""

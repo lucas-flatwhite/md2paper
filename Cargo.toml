@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/md2paper-cli",
+    "crates/md2paper-core",
+    "crates/md2paper-theme",
+    "crates/md2paper-render",
+]
+
+[workspace.dependencies]
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+serde_yaml = "0.9"
+comrak = { version = "0.35", default-features = false, features = ["shortcodes"] }
+typst = "0.14"
+typst-pdf = "0.14"
+typst-assets = { version = "0.14", features = ["fonts"] }
+clap = { version = "4", features = ["derive"] }
+tempfile = "3"

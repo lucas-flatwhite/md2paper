@@ -1,0 +1,51 @@
+[meta]
+name = "academic"
+description = "Academic paper style — serif-centric, narrow margins"
+version = "1.0.0"
+
+[page]
+paper = "a4"
+margin_top = "2.0cm"
+margin_bottom = "2.0cm"
+margin_left = "2.0cm"
+margin_right = "2.0cm"
+columns = 1
+
+[font]
+body_family = "Libertinus Serif"
+body_size = "10pt"
+body_weight = "regular"
+heading_family = "Libertinus Serif"
+heading_weight = "bold"
+code_family = "DejaVu Sans Mono"
+code_size = "8pt"
+fallback = []
+
+[spacing]
+line_height = 1.5
+paragraph_spacing = "0.6em"
+letter_spacing = "0pt"
+heading_above = "1.0em"
+heading_below = "0.5em"
+
+[color]
+body_text = "#000000"
+heading = "#000000"
+link = "#1a0dab"
+code_text = "#24292e"
+code_background = "#f6f8fa"
+blockquote_border = "#aaaaaa"
+blockquote_text = "#555555"
+
+[code]
+theme = "default"
+line_numbers = false
+border_radius = "2pt"
+
+[header_footer]
+header_left = ""
+header_center = ""
+header_right = ""
+footer_left = ""
+footer_center = "{page}"
+footer_right = ""
