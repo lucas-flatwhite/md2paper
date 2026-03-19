@@ -24,12 +24,12 @@
 ## Features
 
 - 🖋 **Full GFM Markdown** — tables, footnotes, task lists, strikethrough, autolinks
-- ➗ **Math syntax** — `$inline$` and `$$display$$` (KaTeX-compatible, parsed via comrak; full rendering coming in Phase 2)
+- ➗ **Math rendering** — `$inline$` and `$$display$$` (KaTeX-compatible, parsed via comrak; full rendering coming in Phase 2)
 - ⚡ **Typst-powered** — orders of magnitude faster than LaTeX
 - 📦 **Single binary** — no Node.js, Python, or LaTeX required
 - 🎨 **TOML theme system** — fully customizable typography and layout
 - 🌐 **Native CJK support** — Korean, Japanese, Chinese out of the box
-- 📚 **Rust library** — use `md2paper-core` as a library in your own projects
+- 📚 **Use as a Rust library** — `md2paper-core` crate
 
 ## Installation
 
