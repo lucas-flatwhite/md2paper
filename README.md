@@ -88,6 +88,8 @@ See `md2paper --help` for the full list of options.
 
 ## Library API
 
+Add `md2paper-core` and `md2paper-theme` to your `Cargo.toml`, then:
+
 ```rust
 use md2paper_core::{convert, convert_with_config, Config};
 use md2paper_theme::loader::load_builtin;

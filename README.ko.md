@@ -24,7 +24,7 @@
 ## 기능
 
 - 🖋 **GFM Markdown** — 체크리스트, 취소선, 자동링크 지원 (표·각주는 Phase 2에서 지원 예정)
-- ➗ **수학식 렌더링** — `$인라인$`, `$$블록$$` (KaTeX 호환 문법으로 파싱; 전체 렌더링은 Phase 2에서 지원 예정)
+- ➗ **수학식 렌더링** — `$inline$`, `$$display$$` (KaTeX 호환 문법으로 파싱; 전체 렌더링은 Phase 2에서 지원 예정)
 - ⚡ **Typst 기반** — LaTeX 대비 수십 배 빠른 변환
 - 📦 **단일 바이너리** — Node.js, Python, LaTeX 불필요
 - 🎨 **TOML 테마 시스템** — 타이포그라피와 레이아웃을 자유롭게 커스터마이징
@@ -87,6 +87,8 @@ cat README.md | md2paper - -o readme.pdf
 | `--emit-typst` | PDF 대신 Typst 마크업 출력 (커스텀 테마 디버깅에 유용) |
 
 ## 라이브러리 API
+
+`Cargo.toml`에 `md2paper-core`와 `md2paper-theme`를 추가한 후:
 
 ```rust
 use md2paper_core::{convert, convert_with_config, Config};
