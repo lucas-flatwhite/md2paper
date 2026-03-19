@@ -1,0 +1,11 @@
+# GFM Table Test
+
+| Name       | Age | City        |
+|------------|-----|-------------|
+| Alice      | 30  | New York    |
+| Bob        | 25  | Los Angeles |
+| Charlie    | 35  | Chicago     |
+
+## Strikethrough
+
+This text has ~~strikethrough~~ formatting.

@@ -1,0 +1,51 @@
+[meta]
+name = "minimal"
+description = "Minimal decoration, wide margins"
+version = "1.0.0"
+
+[page]
+paper = "a4"
+margin_top = "3.5cm"
+margin_bottom = "3.5cm"
+margin_left = "3.5cm"
+margin_right = "3.5cm"
+columns = 1
+
+[font]
+body_family = "New Computer Modern"
+body_size = "11pt"
+body_weight = "regular"
+heading_family = "New Computer Modern"
+heading_weight = "bold"
+code_family = "DejaVu Sans Mono"
+code_size = "9pt"
+fallback = []
+
+[spacing]
+line_height = 1.7
+paragraph_spacing = "1.0em"
+letter_spacing = "0pt"
+heading_above = "1.5em"
+heading_below = "0.7em"
+
+[color]
+body_text = "#444444"
+heading = "#222222"
+link = "#0070f3"
+code_text = "#333333"
+code_background = "#f9f9f9"
+blockquote_border = "#dddddd"
+blockquote_text = "#888888"
+
+[code]
+theme = "default"
+line_numbers = false
+border_radius = "3pt"
+
+[header_footer]
+header_left = ""
+header_center = ""
+header_right = ""
+footer_left = ""
+footer_center = "{page}"
+footer_right = ""

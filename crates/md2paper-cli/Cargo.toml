@@ -1,0 +1,16 @@
+[package]
+name = "md2paper"
+version = "0.1.0"
+edition = "2021"
+description = "Convert Markdown to beautifully typeset PDF"
+
+[[bin]]
+name = "md2paper"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+md2paper-core = { path = "../md2paper-core" }
+md2paper-theme = { path = "../md2paper-theme" }
+md2paper-render = { path = "../md2paper-render" }
