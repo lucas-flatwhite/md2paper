@@ -8,3 +8,4 @@ anyhow = { workspace = true }
 typst = { workspace = true }
 typst-pdf = { workspace = true }
 typst-assets = { workspace = true }
+ureq = { workspace = true }

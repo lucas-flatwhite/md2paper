@@ -1,18 +1,43 @@
+use std::collections::HashMap;
 use comrak::nodes::{AstNode, ListType, NodeValue};
 
 /// Walk the AST and produce Typst markup string.
 pub fn ast_to_typst<'a>(node: &'a AstNode<'a>) -> String {
+    // First pass: collect all footnote definitions (name → rendered content)
+    let footnotes = collect_footnote_defs(node);
     let mut out = String::new();
-    render_node(node, &mut out, false);
+    render_node(node, &mut out, false, &footnotes);
     out
 }
 
-fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
+/// First-pass: build a map of footnote name → rendered body text.
+fn collect_footnote_defs<'a>(root: &'a AstNode<'a>) -> HashMap<String, String> {
+    let mut map = HashMap::new();
+    for node in root.descendants() {
+        let data = node.data.borrow();
+        if let NodeValue::FootnoteDefinition(def) = &data.value {
+            let name = def.name.clone();
+            drop(data);
+            let mut body = String::new();
+            // Render children with an empty footnote map (no nested footnotes)
+            let empty: HashMap<String, String> = HashMap::new();
+            for child in node.children() {
+                render_node(child, &mut body, false, &empty);
+            }
+            map.insert(name, body.trim().to_string());
+        } else {
+            drop(data);
+        }
+    }
+    map
+}
+
+fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool, footnotes: &HashMap<String, String>) {
     let data = node.data.borrow();
     match &data.value {
         NodeValue::Document => {
             drop(data);
-            render_children(node, out, false);
+            render_children(node, out, false, footnotes);
         }
         NodeValue::Heading(heading) => {
             let level = heading.level;
@@ -20,13 +45,13 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
             let prefix = "=".repeat(level as usize);
             out.push_str(&prefix);
             out.push(' ');
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             out.push('\n');
             out.push('\n');
         }
         NodeValue::Paragraph => {
             drop(data);
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             if !inline {
                 out.push('\n');
                 out.push('\n');
@@ -48,19 +73,19 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
         NodeValue::Strong => {
             drop(data);
             out.push('*');
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             out.push('*');
         }
         NodeValue::Emph => {
             drop(data);
             out.push('_');
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             out.push('_');
         }
         NodeValue::Strikethrough => {
             drop(data);
             out.push_str("#strike[");
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             out.push(']');
         }
         NodeValue::Code(code) => {
@@ -88,24 +113,24 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
         NodeValue::BlockQuote => {
             drop(data);
             out.push_str("#quote[\n");
-            render_children(node, out, false);
+            render_children(node, out, false, footnotes);
             out.push_str("]\n\n");
         }
         NodeValue::List(list) => {
             let list_type = list.list_type;
             drop(data);
-            render_list(node, out, list_type, 0);
+            render_list(node, out, list_type, 0, footnotes);
             out.push('\n');
         }
         NodeValue::Item(_) => {
             drop(data);
-            render_children(node, out, false);
+            render_children(node, out, false, footnotes);
         }
         NodeValue::Link(link) => {
             let url = link.url.clone();
             drop(data);
             out.push_str(&format!("#link(\"{}\")[", escape_typst_str(&url)));
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
             out.push(']');
         }
         NodeValue::Image(img) => {
@@ -133,22 +158,26 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
         }
         NodeValue::Table(_) => {
             drop(data);
-            render_table(node, out);
+            render_table(node, out, footnotes);
         }
         NodeValue::TableRow(_) | NodeValue::TableCell => {
             // Handled by render_table
             drop(data);
         }
         NodeValue::FootnoteDefinition(_) => {
-            // Footnote definitions are referenced inline; skip standalone rendering
+            // Collected in the first pass; skip standalone rendering
             drop(data);
         }
         NodeValue::FootnoteReference(r) => {
             let name = r.name.clone();
             drop(data);
-            // Typst doesn't have automatic footnote lookup from name like LaTeX;
-            // emit a placeholder label reference
-            out.push_str(&format!("#footnote[{}]", escape_typst(&name)));
+            // Look up the footnote definition content collected in the first pass
+            if let Some(body) = footnotes.get(&name) {
+                out.push_str(&format!("#footnote[{}]", body));
+            } else {
+                // Fallback: emit name if definition not found
+                out.push_str(&format!("#footnote[{}]", escape_typst(&name)));
+            }
         }
         NodeValue::Math(math) => {
             let dollar_math = math.dollar_math;
@@ -170,22 +199,22 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
             } else {
                 out.push_str("[ ] ");
             }
-            render_children(node, out, true);
+            render_children(node, out, true, footnotes);
         }
         _ => {
             drop(data);
-            render_children(node, out, inline);
+            render_children(node, out, inline, footnotes);
         }
     }
 }
 
-fn render_children<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool) {
+fn render_children<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool, footnotes: &HashMap<String, String>) {
     for child in node.children() {
-        render_node(child, out, inline);
+        render_node(child, out, inline, footnotes);
     }
 }
 
-fn render_list<'a>(node: &'a AstNode<'a>, out: &mut String, list_type: ListType, depth: usize) {
+fn render_list<'a>(node: &'a AstNode<'a>, out: &mut String, list_type: ListType, depth: usize, footnotes: &HashMap<String, String>) {
     let indent = "  ".repeat(depth);
     for item in node.children() {
         let data = item.data.borrow();
@@ -206,17 +235,17 @@ fn render_list<'a>(node: &'a AstNode<'a>, out: &mut String, list_type: ListType,
                         if !first {
                             out.push_str(&format!("\n{}", " ".repeat(depth * 2 + 2)));
                         }
-                        render_children(child, out, true);
+                        render_children(child, out, true, footnotes);
                     }
                     NodeValue::List(nested_list) => {
                         let nested_type = nested_list.list_type;
                         drop(child_data);
                         out.push('\n');
-                        render_list(child, out, nested_type, depth + 1);
+                        render_list(child, out, nested_type, depth + 1, footnotes);
                     }
                     _ => {
                         drop(child_data);
-                        render_node(child, out, true);
+                        render_node(child, out, true, footnotes);
                     }
                 }
                 first = false;
@@ -228,7 +257,7 @@ fn render_list<'a>(node: &'a AstNode<'a>, out: &mut String, list_type: ListType,
     }
 }
 
-fn render_table<'a>(node: &'a AstNode<'a>, out: &mut String) {
+fn render_table<'a>(node: &'a AstNode<'a>, out: &mut String, footnotes: &HashMap<String, String>) {
     // Collect rows
     let mut rows: Vec<Vec<String>> = Vec::new();
     let mut is_header: Vec<bool> = Vec::new();
@@ -244,7 +273,7 @@ fn render_table<'a>(node: &'a AstNode<'a>, out: &mut String) {
                 if let NodeValue::TableCell = &cell_data.value {
                     drop(cell_data);
                     let mut cell_content = String::new();
-                    render_children(cell_node, &mut cell_content, true);
+                    render_children(cell_node, &mut cell_content, true, footnotes);
                     cells.push(cell_content.trim().to_string());
                 } else {
                     drop(cell_data);
@@ -297,15 +326,21 @@ fn collect_text<'a>(node: &'a AstNode<'a>) -> String {
 
 /// Escape special Typst characters in body text.
 fn escape_typst(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
+    let mut out = String::with_capacity(s.len() + 8);
     for ch in s.chars() {
         match ch {
+            // Must be first: \ is the Typst escape character itself
+            '\\' => out.push_str("\\\\"),
             '@' => out.push_str("\\@"),
             '#' => out.push_str("\\#"),
             '<' => out.push_str("\\<"),
             '>' => out.push_str("\\>"),
-            // Typst uses * for bold and _ for italic but only when matched
-            // We escape them only when they could be ambiguous
+            // ~ creates a non-breaking space in Typst markup
+            '~' => out.push_str("\\~"),
+            // $ starts math mode
+            '$' => out.push_str("\\$"),
+            // ` starts inline/block code
+            '`' => out.push_str("\\`"),
             _ => out.push(ch),
         }
     }

@@ -39,10 +39,10 @@ print(fibonacci(10))
 
 ## Math
 
-Euler's identity: $e^{i\pi} + 1 = 0$
+Euler's identity: $e^(i pi) + 1 = 0$
 
 $$
-\nabla \cdot \mathbf{E} = \frac{\rho}{\varepsilon_0}
+nabla dot.c bold(E) = rho / epsilon_0
 $$
 
 ## Blockquote

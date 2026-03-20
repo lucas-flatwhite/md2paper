@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 use typst::foundations::{Bytes, Datetime};
 use typst::text::{Font, FontBook};
@@ -19,6 +21,55 @@ pub struct MemWorld {
     fonts: Vec<Font>,
     /// Base directory for resolving relative file paths (e.g., images).
     base_dir: PathBuf,
+    /// In-memory cache for downloaded remote images.
+    http_cache: Mutex<HashMap<String, Bytes>>,
+}
+
+/// Returns true if the given rootless path looks like an HTTP(S) URL.
+pub(crate) fn is_http_url(path: &Path) -> bool {
+    let s = path.to_string_lossy();
+    s.starts_with("https://") || s.starts_with("http://")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_is_http_url_detects_https() {
+        assert!(is_http_url(Path::new("https://example.com/image.png")));
+    }
+
+    #[test]
+    fn test_is_http_url_detects_http() {
+        assert!(is_http_url(Path::new("http://example.com/logo.svg")));
+    }
+
+    #[test]
+    fn test_is_http_url_rejects_relative_path() {
+        assert!(!is_http_url(Path::new("images/photo.jpg")));
+    }
+
+    #[test]
+    fn test_is_http_url_rejects_absolute_path() {
+        assert!(!is_http_url(Path::new("/usr/local/images/photo.jpg")));
+    }
+}
+
+/// Download a URL and return its bytes. Results are not cached here;
+/// caching is handled by the caller.
+fn fetch_url(url: &str) -> FileResult<Bytes> {
+    ureq::get(url)
+        .call()
+        .map_err(|_| FileError::Other(Some(format!("failed to download {url}").into())))
+        .and_then(|resp| {
+            let mut buf = Vec::new();
+            use std::io::Read;
+            resp.into_reader()
+                .read_to_end(&mut buf)
+                .map_err(|_| FileError::Other(Some(format!("failed to read response from {url}").into())))?;
+            Ok(Bytes::new(buf))
+        })
 }
 
 impl MemWorld {
@@ -44,6 +95,7 @@ impl MemWorld {
             book: LazyHash::new(book),
             fonts,
             base_dir: base_dir.to_path_buf(),
+            http_cache: Mutex::new(HashMap::new()),
         }
     }
 }
@@ -73,6 +125,21 @@ impl World for MemWorld {
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
         let rel = id.vpath().as_rootless_path();
+
+        // Handle HTTP(S) URLs: download and cache in memory
+        if is_http_url(rel) {
+            let url = rel.to_string_lossy().into_owned();
+            {
+                let cache = self.http_cache.lock().unwrap();
+                if let Some(cached) = cache.get(&url) {
+                    return Ok(cached.clone());
+                }
+            }
+            let bytes = fetch_url(&url)?;
+            self.http_cache.lock().unwrap().insert(url, bytes.clone());
+            return Ok(bytes);
+        }
+
         let full_path = self.base_dir.join(rel);
         std::fs::read(&full_path)
             .map(|v| Bytes::new(v))

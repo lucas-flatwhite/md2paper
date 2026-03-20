@@ -105,7 +105,7 @@ footer_right = ""
 #[test]
 fn test_generate_preamble_contains_key_elements() {
     let theme = load_builtin("default").unwrap();
-    let preamble = generate_preamble(&theme, "My Title", "Author", "2026");
+    let preamble = generate_preamble(&theme, "My Title", "Author", "2026", false);
     assert!(preamble.contains("#set page("));
     assert!(preamble.contains("#set text("));
     assert!(preamble.contains("#show heading:"));

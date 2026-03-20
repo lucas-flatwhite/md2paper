@@ -5,6 +5,20 @@ pub mod transform;
 pub use config::{Config, ConfigBuilder, apply_front_matter};
 pub use md2paper_theme::model::Theme;
 
+/// Return a human-readable debug representation of the Markdown AST.
+/// Useful for the `--dump-ast` CLI flag.
+pub fn ast_as_debug_string(markdown: &str) -> String {
+    let (body, _fm) = parser::extract_front_matter(markdown);
+    let arena = comrak::Arena::new();
+    let root = parser::parse_markdown(&arena, &body);
+    format!("{:#?}", root.data.borrow().value)
+        + "\n"
+        + &root.children()
+            .map(|child| format!("{:#?}", child.data.borrow().value))
+            .collect::<Vec<_>>()
+            .join("\n")
+}
+
 use anyhow::Result;
 use comrak::Arena;
 
@@ -43,7 +57,7 @@ pub fn to_typst(markdown: &str, config: &Config) -> Result<String> {
     let title = effective_config.title.as_deref().unwrap_or("");
     let author = effective_config.author.as_deref().unwrap_or("");
     let date = effective_config.date.as_deref().unwrap_or("");
-    let preamble = md2paper_theme::inject::generate_preamble(&effective_config.theme, title, author, date);
+    let preamble = md2paper_theme::inject::generate_preamble(&effective_config.theme, title, author, date, effective_config.cover);
 
     // Optional TOC
     let toc_block = if effective_config.toc {

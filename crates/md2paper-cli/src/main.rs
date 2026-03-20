@@ -127,6 +127,12 @@ fn main() -> Result<()> {
 
     let config = builder.build();
 
+    // Dump AST and exit if requested
+    if cli.dump_ast {
+        print!("{}", md2paper_core::ast_as_debug_string(&markdown));
+        return Ok(());
+    }
+
     // Generate Typst markup
     let typst_src = to_typst(&markdown, &config)
         .context("Failed to convert Markdown to Typst markup")?;

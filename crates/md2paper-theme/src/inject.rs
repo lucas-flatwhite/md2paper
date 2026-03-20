@@ -1,7 +1,7 @@
 use crate::model::Theme;
 
 /// Generate Typst preamble (set/show rules) from a theme.
-pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_date: &str) -> String {
+pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_date: &str, cover: bool) -> String {
     let p = &theme.page;
     let f = &theme.font;
     let s = &theme.spacing;
@@ -26,8 +26,25 @@ pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_d
     let header = build_page_header(hf, doc_title);
     let footer = build_page_footer(hf);
 
-    // Title/author/date block
-    let title_block = if !doc_title.is_empty() || !doc_author.is_empty() {
+    // Title/author/date block — full cover page or inline header
+    let title_block = if cover && (!doc_title.is_empty() || !doc_author.is_empty()) {
+        // Cover page: centred vertically and horizontally, followed by a page break
+        let mut parts = Vec::new();
+        if !doc_title.is_empty() {
+            parts.push(format!("    text(size: 28pt, weight: \"bold\", \"{doc_title}\")"));
+        }
+        if !doc_author.is_empty() {
+            parts.push(format!("    v(1em)\n    text(size: 14pt, \"{doc_author}\")"));
+        }
+        if !doc_date.is_empty() {
+            parts.push(format!("    v(0.5em)\n    text(size: 11pt, style: \"italic\", \"{doc_date}\")"));
+        }
+        format!(
+            "#align(center + horizon)[\n{}\n]\n#pagebreak()\n\n",
+            parts.join("\n")
+        )
+    } else if !cover && (!doc_title.is_empty() || !doc_author.is_empty()) {
+        // Inline title block at the top of content (original behaviour)
         let mut parts = Vec::new();
         if !doc_title.is_empty() {
             parts.push(format!("  align(center, text(size: 20pt, weight: \"bold\", \"{doc_title}\"))"));
@@ -38,14 +55,12 @@ pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_d
         if !doc_date.is_empty() {
             parts.push(format!("  align(center, text(size: 10pt, style: \"italic\", \"{doc_date}\"))"));
         }
-        if !parts.is_empty() {
-            format!("{}\n\n", parts.join("\n"))
-        } else {
-            String::new()
-        }
+        format!("{}\n\n", parts.join("\n"))
     } else {
         String::new()
     };
+
+    let code_block_rule = build_code_block_rule(code, f, c);
 
     format!(
         r#"#set page(
@@ -66,6 +81,7 @@ pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_d
   spacing: {paragraph_spacing},
   justify: true,
 )
+#set raw(tab-size: 2)
 #show heading: it => {{
   let sizes = (24pt, 18pt, 14pt, 12pt)
   let sz = if it.level <= 4 {{ sizes.at(it.level - 1) }} else {{ 11pt }}
@@ -93,15 +109,7 @@ pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_d
     text(font: "{code_family}", size: {code_size}, fill: rgb("{code_fg}"), it),
   )
 }}
-#show raw.where(block: true): it => {{
-  block(
-    fill: rgb("{code_bg}"),
-    inset: 10pt,
-    radius: {border_radius},
-    width: 100%,
-    text(font: "{code_family}", size: {code_size}, fill: rgb("{code_fg}"), it),
-  )
-}}
+{code_block_rule}
 #show quote: it => {{
   block(
     inset: (left: 12pt),
@@ -139,8 +147,61 @@ pub fn generate_preamble(theme: &Theme, doc_title: &str, doc_author: &str, doc_d
         code_fg = c.code_text,
         bq_border = c.blockquote_border,
         bq_text = c.blockquote_text,
+        code_block_rule = code_block_rule,
         title_block = title_block,
     )
+}
+
+/// Build the `#show raw.where(block: true)` rule.
+/// When `line_numbers` is enabled, iterates `it.lines` to render a line-numbered grid.
+/// Otherwise emits a plain container without overriding token fill colors.
+fn build_code_block_rule(
+    code: &crate::model::CodeSection,
+    f: &crate::model::FontSection,
+    c: &crate::model::ColorSection,
+) -> String {
+    if code.line_numbers {
+        format!(
+            r##"#show raw.where(block: true): it => {{
+  block(
+    fill: rgb("{code_bg}"),
+    radius: {border_radius},
+    width: 100%,
+    clip: true,
+    grid(
+      inset: (x: 10pt, y: 8pt),
+      columns: (auto, 1fr),
+      column-gutter: 0.6em,
+      row-gutter: 0pt,
+      ..it.lines.enumerate().map(((i, line)) => (
+        text(font: "{code_family}", size: {code_size}, fill: rgb("#888888"), str(i + 1)),
+        text(font: "{code_family}", size: {code_size}, line.body),
+      )).flatten(),
+    ),
+  )
+}}"##,
+            code_bg = c.code_background,
+            border_radius = code.border_radius,
+            code_family = f.code_family,
+            code_size = f.code_size,
+        )
+    } else {
+        format!(
+            r#"#show raw.where(block: true): it => {{
+  block(
+    fill: rgb("{code_bg}"),
+    inset: 10pt,
+    radius: {border_radius},
+    width: 100%,
+    text(font: "{code_family}", size: {code_size}, it),
+  )
+}}"#,
+            code_bg = c.code_background,
+            border_radius = code.border_radius,
+            code_family = f.code_family,
+            code_size = f.code_size,
+        )
+    }
 }
 
 fn build_page_header(hf: &crate::model::HeaderFooterSection, title: &str) -> String {
