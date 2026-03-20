@@ -1,3 +1,6 @@
+mod watch;
+mod preview;
+
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
@@ -91,6 +94,83 @@ struct Cli {
     /// Suppress all output except errors
     #[arg(short, long)]
     quiet: bool,
+
+    /// Watch input files and recompile on change
+    #[arg(long)]
+    watch: bool,
+
+    /// Start a local preview server with live PDF reload
+    #[arg(long)]
+    preview: bool,
+}
+
+/// Compile arguments — mirrors CLI overrides, cloneable for watch/preview loops.
+struct CompileArgs {
+    inputs: Vec<String>,
+    base_dir: Option<PathBuf>,
+    theme_name: String,
+    title: Option<String>,
+    author: Option<String>,
+    date: Option<String>,
+    font: Option<String>,
+    font_size: Option<String>,
+    line_height: Option<f64>,
+    letter_spacing: Option<String>,
+    paper: Option<String>,
+    margin: Option<String>,
+    toc: bool,
+    toc_depth: u8,
+    cover: bool,
+}
+
+fn build_compile_args(cli: &Cli) -> CompileArgs {
+    CompileArgs {
+        inputs: cli.inputs.clone(),
+        base_dir: cli.base_dir.clone(),
+        theme_name: cli.theme.clone(),
+        title: cli.title.clone(),
+        author: cli.author.clone(),
+        date: cli.date.clone(),
+        font: cli.font.clone(),
+        font_size: cli.font_size.clone(),
+        line_height: cli.line_height,
+        letter_spacing: cli.letter_spacing.clone(),
+        paper: cli.paper.clone(),
+        margin: cli.margin.clone(),
+        toc: cli.toc,
+        toc_depth: cli.toc_depth,
+        cover: cli.cover,
+    }
+}
+
+/// Compile and return the PDF as bytes (does not write to disk).
+fn compile_once_bytes(args: &CompileArgs) -> Result<Vec<u8>> {
+    let (markdown, base_dir) = read_inputs_raw(&args.inputs, args.base_dir.as_deref())?;
+    let theme = load(&args.theme_name)
+        .with_context(|| format!("Failed to load theme '{}'", args.theme_name))?;
+    let mut builder = Config::builder().theme(theme);
+    if let Some(v) = &args.title { builder = builder.title(v.clone()); }
+    if let Some(v) = &args.author { builder = builder.author(v.clone()); }
+    if let Some(v) = &args.date { builder = builder.date(v.clone()); }
+    if let Some(v) = &args.font { builder = builder.font_family(v.clone()); }
+    if let Some(v) = &args.font_size { builder = builder.font_size(v.clone()); }
+    if let Some(v) = args.line_height { builder = builder.line_height(v); }
+    if let Some(v) = &args.letter_spacing { builder = builder.letter_spacing(v.clone()); }
+    if let Some(v) = &args.paper { builder = builder.paper(v.clone()); }
+    if let Some(v) = &args.margin { builder = builder.margin(v.clone()); }
+    builder = builder.toc(args.toc).toc_depth(args.toc_depth).cover(args.cover);
+    let config = builder.build();
+    let typst_src = to_typst(&markdown, &config)
+        .context("Failed to convert Markdown to Typst markup")?;
+    render_to_pdf_with_base(&typst_src, &base_dir)
+        .context("Failed to render PDF")
+}
+
+/// Compile and write to `out_path`.
+fn compile_once(args: &CompileArgs, out_path: &Path) -> Result<()> {
+    let bytes = compile_once_bytes(args)?;
+    std::fs::write(out_path, &bytes)
+        .with_context(|| format!("Failed to write {}", out_path.display()))
 }
 
 fn main() -> Result<()> {
@@ -109,15 +189,15 @@ fn main() -> Result<()> {
 
     // Build config
     let mut builder = Config::builder().theme(theme);
-    if let Some(v) = cli.title { builder = builder.title(v); }
-    if let Some(v) = cli.author { builder = builder.author(v); }
-    if let Some(v) = cli.date { builder = builder.date(v); }
-    if let Some(v) = cli.font { builder = builder.font_family(v); }
-    if let Some(v) = cli.font_size { builder = builder.font_size(v); }
+    if let Some(v) = cli.title.clone() { builder = builder.title(v); }
+    if let Some(v) = cli.author.clone() { builder = builder.author(v); }
+    if let Some(v) = cli.date.clone() { builder = builder.date(v); }
+    if let Some(v) = cli.font.clone() { builder = builder.font_family(v); }
+    if let Some(v) = cli.font_size.clone() { builder = builder.font_size(v); }
     if let Some(v) = cli.line_height { builder = builder.line_height(v); }
-    if let Some(v) = cli.letter_spacing { builder = builder.letter_spacing(v); }
-    if let Some(v) = cli.paper { builder = builder.paper(v); }
-    if let Some(v) = cli.margin { builder = builder.margin(v); }
+    if let Some(v) = cli.letter_spacing.clone() { builder = builder.letter_spacing(v); }
+    if let Some(v) = cli.paper.clone() { builder = builder.paper(v); }
+    if let Some(v) = cli.margin.clone() { builder = builder.margin(v); }
     builder = builder
         .toc(cli.toc)
         .toc_depth(cli.toc_depth)
@@ -159,22 +239,45 @@ fn main() -> Result<()> {
         eprintln!("Written: {}", out_path.display());
     }
 
+    // Watch / Preview modes
+    if cli.preview || cli.watch {
+        let input_paths: Vec<PathBuf> = cli.inputs.iter()
+            .filter(|i| i.as_str() != "-")
+            .map(PathBuf::from)
+            .collect();
+        if input_paths.is_empty() {
+            anyhow::bail!("--watch/--preview requires at least one input file path (not stdin)");
+        }
+        let args = build_compile_args(&cli);
+        let out = out_path.clone();
+
+        if cli.preview {
+            preview::run_preview(input_paths, move || compile_once_bytes(&args))?;
+        } else {
+            watch::run_watch_loop(input_paths, move || compile_once(&args, &out))?;
+        }
+    }
+
     Ok(())
 }
 
 fn read_inputs(cli: &Cli) -> Result<(String, PathBuf)> {
-    if cli.inputs.is_empty() || cli.inputs == ["-"] {
-        // Read from stdin
+    read_inputs_raw(&cli.inputs, cli.base_dir.as_deref())
+}
+
+fn read_inputs_raw(inputs: &[String], explicit_base: Option<&Path>) -> Result<(String, PathBuf)> {
+    if inputs.is_empty() || inputs == ["-"] {
         let mut buf = String::new();
         std::io::stdin().read_to_string(&mut buf).context("Failed to read stdin")?;
-        let base = cli.base_dir.clone().unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+        let base = explicit_base.map(|p| p.to_path_buf())
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
         return Ok((buf, base));
     }
 
     let mut parts = Vec::new();
-    let mut base_dir = cli.base_dir.clone();
+    let mut base_dir: Option<PathBuf> = explicit_base.map(|p| p.to_path_buf());
 
-    for input in &cli.inputs {
+    for input in inputs {
         if input == "-" {
             let mut buf = String::new();
             std::io::stdin().read_to_string(&mut buf).context("Failed to read stdin")?;
@@ -183,7 +286,6 @@ fn read_inputs(cli: &Cli) -> Result<(String, PathBuf)> {
             let path = Path::new(input);
             let content = std::fs::read_to_string(path)
                 .with_context(|| format!("Failed to read input file: {input}"))?;
-            // Use the directory of the first file as base_dir
             if base_dir.is_none() {
                 base_dir = path.parent().map(|p| {
                     if p.as_os_str().is_empty() {
@@ -206,7 +308,6 @@ fn determine_output(inputs: &[String], explicit: Option<&Path>) -> Result<PathBu
     if let Some(p) = explicit {
         return Ok(p.to_path_buf());
     }
-    // Derive from first input
     if let Some(first) = inputs.first() {
         if first != "-" {
             let p = Path::new(first);

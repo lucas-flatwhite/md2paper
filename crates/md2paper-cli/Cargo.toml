@@ -14,3 +14,4 @@ clap = { workspace = true }
 md2paper-core = { path = "../md2paper-core" }
 md2paper-theme = { path = "../md2paper-theme" }
 md2paper-render = { path = "../md2paper-render" }
+notify = { workspace = true }
