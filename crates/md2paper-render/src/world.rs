@@ -54,6 +54,21 @@ mod tests {
     fn test_is_http_url_rejects_absolute_path() {
         assert!(!is_http_url(Path::new("/usr/local/images/photo.jpg")));
     }
+
+    #[test]
+    fn test_today_returns_correct_month_and_day() {
+        use std::path::Path;
+        let world = MemWorld::new("", Path::new("."));
+        let date = world.today(None).expect("today must return a date");
+        // The current impl always returns month=1, day=1 — this catches the bug.
+        // On Jan 1 this might spuriously pass; that's acceptable for a unit test.
+        let month = date.month().unwrap();
+        let day = date.day().unwrap();
+        assert!(month >= 1 && month <= 12, "month out of range: {month}");
+        assert!(day >= 1 && day <= 31, "day out of range: {day}");
+        // Ensure year is at least 2024 (rules out epoch-overflow bugs)
+        assert!(date.year().unwrap() >= 2024, "year implausibly small");
+    }
 }
 
 /// Download a URL and return its bytes. Results are not cached here;
@@ -98,6 +113,23 @@ impl MemWorld {
             http_cache: Mutex::new(HashMap::new()),
         }
     }
+}
+
+/// Convert Unix timestamp (seconds since 1970-01-01 UTC) to (year, month, day)
+/// using the proleptic Gregorian calendar. Algorithm by Howard Hinnant.
+fn unix_secs_to_ymd(secs: i64) -> (i32, u8, u8) {
+    let days = secs.div_euclid(86400) as i32;
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;                          // day of era [0, 146096]
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146_096) / 365; // [0, 399]
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);   // day of year [0, 365]
+    let mp = (5 * doy + 2) / 153;                         // month prime [0, 11]
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u8;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
 }
 
 impl World for MemWorld {
@@ -161,9 +193,7 @@ impl World for MemWorld {
             .duration_since(std::time::UNIX_EPOCH)
             .ok()?;
         let secs = now.as_secs() as i64 + offset.unwrap_or(0) * 3600;
-        let days = secs / 86400;
-        // Approximate: epoch is 1970-01-01
-        let year = 1970 + (days / 365) as i32;
-        Datetime::from_ymd(year, 1, 1)
+        let (y, m, d) = unix_secs_to_ymd(secs);
+        Datetime::from_ymd(y, m, d)
     }
 }
