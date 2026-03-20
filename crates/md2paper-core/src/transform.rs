@@ -100,7 +100,14 @@ fn render_node<'a>(node: &'a AstNode<'a>, out: &mut String, inline: bool, footno
             let literal = cb.literal.clone();
             drop(data);
             let lang = info.split_whitespace().next().unwrap_or("").trim();
-            if lang.is_empty() {
+            if lang == "typst" {
+                // Passthrough: emit raw Typst source directly without wrapping
+                out.push_str(&literal);
+                if !literal.ends_with('\n') {
+                    out.push('\n');
+                }
+                out.push('\n');
+            } else if lang.is_empty() {
                 out.push_str("```\n");
                 out.push_str(&literal);
                 out.push_str("```\n\n");

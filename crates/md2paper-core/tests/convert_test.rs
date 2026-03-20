@@ -281,3 +281,16 @@ fn test_cover_page_converts_to_pdf() {
     let pdf = convert_with_config("# Content\n\nBody.", &config).expect("cover doc should render");
     assert!(pdf.starts_with(b"%PDF"));
 }
+
+// ── Task 3: Typst 펜스 패스스루 ───────────────────────────────────────────────
+
+#[test]
+fn test_typst_fence_emits_raw_typst() {
+    let config = Config::builder().build();
+    // Must appear verbatim in output, NOT wrapped in a raw block
+    let typst = to_typst("```typst\n#text(red)[hello]\n```", &config).unwrap();
+    assert!(typst.contains("#text(red)[hello]"),
+        "typst fence must passthrough verbatim: got {}", typst);
+    assert!(!typst.contains("```typst"),
+        "typst fence must NOT re-emit as raw block: got {}", typst);
+}
