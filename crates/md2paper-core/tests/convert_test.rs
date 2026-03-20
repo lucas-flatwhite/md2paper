@@ -282,6 +282,24 @@ fn test_cover_page_converts_to_pdf() {
     assert!(pdf.starts_with(b"%PDF"));
 }
 
+// ── Task 4: math 에러 힌트 ────────────────────────────────────────────────────
+
+#[test]
+fn test_latex_math_error_includes_hint() {
+    // \frac is LaTeX syntax — Typst emits "unknown variable: frac"
+    // After our fix, the error message must mention Typst math syntax
+    let md = "$$\n\\frac{1}{2}\n$$\n";
+    let config = Config::builder().build();
+    let typst_src = to_typst(md, &config).unwrap();
+    let err = md2paper_render::render_to_pdf(&typst_src)
+        .expect_err("LaTeX math must fail Typst compilation");
+    let msg = err.to_string().to_lowercase();
+    assert!(
+        msg.contains("hint") || msg.contains("typst") || msg.contains("math syntax"),
+        "error must contain a Typst math hint, got: {}", err
+    );
+}
+
 // ── Task 3: Typst 펜스 패스스루 ───────────────────────────────────────────────
 
 #[test]

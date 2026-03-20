@@ -25,7 +25,18 @@ pub fn render(typst_src: &str, base_dir: &Path) -> Result<Vec<u8>> {
                 .iter()
                 .map(|e| format!("{}", e.message))
                 .collect();
-            anyhow!("Typst compilation failed:\n{}", msgs.join("\n"))
+            let mut combined = msgs.join("\n");
+            // Detect likely LaTeX-style math errors and append a hint
+            if combined.contains("unknown variable")
+                || combined.contains("not found")
+            {
+                combined.push_str(
+                    "\n\nHint: md2paper uses Typst math syntax, not LaTeX.\n\
+                     LaTeX → Typst: \\int → integral, \\frac{a}{b} → a/b, \
+                     \\nabla → nabla, \\infty → infinity, \\sqrt{x} → sqrt(x)"
+                );
+            }
+            anyhow!("Typst compilation failed:\n{}", combined)
         })?;
 
     let options = PdfOptions::default();
