@@ -5,18 +5,70 @@ pub mod transform;
 pub use config::{Config, ConfigBuilder, apply_front_matter};
 pub use md2paper_theme::model::Theme;
 
-/// Return a human-readable debug representation of the Markdown AST.
+/// Return the Markdown AST as a pretty-printed JSON string.
 /// Useful for the `--dump-ast` CLI flag.
 pub fn ast_as_debug_string(markdown: &str) -> String {
     let (body, _fm) = parser::extract_front_matter(markdown);
     let arena = comrak::Arena::new();
     let root = parser::parse_markdown(&arena, &body);
-    format!("{:#?}", root.data.borrow().value)
-        + "\n"
-        + &root.children()
-            .map(|child| format!("{:#?}", child.data.borrow().value))
-            .collect::<Vec<_>>()
-            .join("\n")
+    let json = ast_node_to_json(root);
+    serde_json::to_string_pretty(&json).unwrap_or_else(|_| "{}".to_string())
+}
+
+fn ast_node_to_json<'a>(node: &'a comrak::nodes::AstNode<'a>) -> serde_json::Value {
+    use comrak::nodes::NodeValue;
+    let data = node.data.borrow();
+    let type_name = match &data.value {
+        NodeValue::Document => "Document",
+        NodeValue::Heading(_) => "Heading",
+        NodeValue::Paragraph => "Paragraph",
+        NodeValue::Text(_) => "Text",
+        NodeValue::Strong => "Strong",
+        NodeValue::Emph => "Emph",
+        NodeValue::Code(_) => "Code",
+        NodeValue::CodeBlock(_) => "CodeBlock",
+        NodeValue::BlockQuote => "BlockQuote",
+        NodeValue::List(_) => "List",
+        NodeValue::Item(_) => "Item",
+        NodeValue::Link(_) => "Link",
+        NodeValue::Image(_) => "Image",
+        NodeValue::Table(_) => "Table",
+        NodeValue::TableRow(_) => "TableRow",
+        NodeValue::TableCell => "TableCell",
+        NodeValue::ThematicBreak => "ThematicBreak",
+        NodeValue::SoftBreak => "SoftBreak",
+        NodeValue::LineBreak => "LineBreak",
+        NodeValue::HtmlBlock(_) => "HtmlBlock",
+        NodeValue::HtmlInline(_) => "HtmlInline",
+        NodeValue::FootnoteDefinition(_) => "FootnoteDefinition",
+        NodeValue::FootnoteReference(_) => "FootnoteReference",
+        NodeValue::Strikethrough => "Strikethrough",
+        NodeValue::Math(_) => "Math",
+        NodeValue::TaskItem(_) => "TaskItem",
+        _ => "Unknown",
+    };
+    let extra: Option<serde_json::Value> = match &data.value {
+        NodeValue::Heading(h) => Some(serde_json::json!({ "level": h.level })),
+        NodeValue::Text(t) => Some(serde_json::json!({ "value": t })),
+        NodeValue::Code(c) => Some(serde_json::json!({ "literal": c.literal })),
+        NodeValue::CodeBlock(cb) => Some(serde_json::json!({
+            "info": cb.info, "literal": cb.literal
+        })),
+        NodeValue::Link(l) => Some(serde_json::json!({ "url": l.url })),
+        NodeValue::Image(i) => Some(serde_json::json!({ "url": i.url })),
+        NodeValue::Math(m) => Some(serde_json::json!({
+            "literal": m.literal, "display": m.dollar_math
+        })),
+        _ => None,
+    };
+    drop(data);
+    let children: Vec<serde_json::Value> = node.children()
+        .map(|c| ast_node_to_json(c))
+        .collect();
+    let mut obj = serde_json::json!({ "type": type_name });
+    if let Some(e) = extra { obj["data"] = e; }
+    if !children.is_empty() { obj["children"] = serde_json::Value::Array(children); }
+    obj
 }
 
 use anyhow::Result;

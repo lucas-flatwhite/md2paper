@@ -1,4 +1,5 @@
 use md2paper_core::{convert, convert_with_config, Config, to_typst};
+use serde_json;
 use md2paper_theme::loader::load_builtin;
 
 #[test]
@@ -238,6 +239,18 @@ fn test_ast_dump_contains_node_types() {
     let dump = md2paper_core::ast_as_debug_string("# Hello\n\nWorld");
     assert!(!dump.is_empty(), "dump must not be empty");
     assert!(dump.contains("Heading") || dump.contains("heading"), "must mention heading node");
+}
+
+#[test]
+fn test_ast_dump_is_valid_json() {
+    let dump = md2paper_core::ast_as_debug_string("# Hello\n\nWorld");
+    let parsed: serde_json::Value =
+        serde_json::from_str(&dump).expect("ast dump must be valid JSON");
+    assert_eq!(parsed["type"], "Document", "root must be Document");
+    let children = parsed["children"].as_array().expect("Document must have children");
+    assert!(!children.is_empty(), "must have at least one child");
+    let first = &children[0];
+    assert_eq!(first["type"], "Heading", "first child of '# Hello' must be Heading");
 }
 
 // ── Fix 3b: --cover 표지 페이지 ───────────────────────────────────────────────

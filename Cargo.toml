@@ -19,3 +19,4 @@ typst-assets = { version = "0.14", features = ["fonts"] }
 clap = { version = "4", features = ["derive"] }
 tempfile = "3"
 ureq = "2"
+serde_json = "1"

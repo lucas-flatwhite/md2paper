@@ -1389,6 +1389,7 @@ dependencies = [
  "md2paper-render",
  "md2paper-theme",
  "serde",
+ "serde_json",
  "serde_yaml",
 ]
 

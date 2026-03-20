@@ -10,3 +10,4 @@ serde_yaml = { workspace = true }
 comrak = { workspace = true }
 md2paper-theme = { path = "../md2paper-theme" }
 md2paper-render = { path = "../md2paper-render" }
+serde_json = { workspace = true }
